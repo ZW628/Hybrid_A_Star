@@ -355,6 +355,7 @@ Vec2d HybridAStar::MapGridIndex2Coordinate(const Vec2i &grid_index) const
     return pt;
 }
 
+// 将连续的状态映射到状态空间的离散网格中，以便在搜索过程中使用离散的状态
 Vec3i HybridAStar::State2Index(const Vec3d &state) const
 {
     Vec3i index;
@@ -366,19 +367,23 @@ Vec3i HybridAStar::State2Index(const Vec3d &state) const
     return index;
 }
 
+// 将给定的二维坐标 Vec2d pt 转换为地图网格的索引 Vec2i
 Vec2i HybridAStar::Coordinate2MapGridIndex(const Vec2d &pt) const
 {
     Vec2i grid_index;
 
+    // 将坐标的每个分量映射到对应的地图网格索引
     grid_index[0] = int((pt[0] - map_x_lower_) / MAP_GRID_RESOLUTION_);
     grid_index[1] = int((pt[1] - map_y_lower_) / MAP_GRID_RESOLUTION_);
     return grid_index;
 }
 
+// 取给定状态节点的邻居节点
+// 根据车辆在不同转向情况下前进和后退的可能性
 void HybridAStar::GetNeighborNodes(const StateNode::Ptr &curr_node_ptr,
                                    std::vector<StateNode::Ptr> &neighbor_nodes)
 {
-    neighbor_nodes.clear();
+    neighbor_nodes.clear(); // 清空传入的邻居节点容器
 
     for (int i = -steering_discrete_num_; i <= steering_discrete_num_; ++i)
     {
@@ -389,13 +394,15 @@ void HybridAStar::GetNeighborNodes(const StateNode::Ptr &curr_node_ptr,
         double y = curr_node_ptr->state_.y();
         double theta = curr_node_ptr->state_.z();
 
+        // 计算当前转向角度
         const double phi = i * steering_radian_step_size_;
 
         // forward
         for (int j = 1; j <= segment_length_discrete_num_; j++)
         {
+            // 根据动力学模型计算前进一步的状态
             DynamicModel(move_step_size_, phi, x, y, theta);
-            intermediate_state.emplace_back(Vec3d(x, y, theta));
+            intermediate_state.emplace_back(Vec3d(x, y, theta)); // 将状态添加到中间状态向量
 
             if (!CheckCollision(x, y, theta))
             {
@@ -405,14 +412,15 @@ void HybridAStar::GetNeighborNodes(const StateNode::Ptr &curr_node_ptr,
         }
 
         Vec3i grid_index = State2Index(intermediate_state.back());
+        // intermediate_state.back().head(2):返回的是最后一个三维向量的前两个元素，二维向量(x,y)
         if (!BeyondBoundary(intermediate_state.back().head(2)) && !has_obstacle)
         {
-            auto neighbor_forward_node_ptr = new StateNode(grid_index);
-            neighbor_forward_node_ptr->intermediate_states_ = intermediate_state;
-            neighbor_forward_node_ptr->state_ = intermediate_state.back();
-            neighbor_forward_node_ptr->steering_grade_ = i;
-            neighbor_forward_node_ptr->direction_ = StateNode::FORWARD;
-            neighbor_nodes.push_back(neighbor_forward_node_ptr);
+            auto neighbor_forward_node_ptr = new StateNode(grid_index);           // 创建前进邻居节点
+            neighbor_forward_node_ptr->intermediate_states_ = intermediate_state; // 设置中间状态
+            neighbor_forward_node_ptr->state_ = intermediate_state.back();        // 设置节点状态为最终状态
+            neighbor_forward_node_ptr->steering_grade_ = i;                       // 设置转向等级
+            neighbor_forward_node_ptr->direction_ = StateNode::FORWARD;           // 设置方向为前进
+            neighbor_nodes.push_back(neighbor_forward_node_ptr);                  // 将前进邻居节点添加到容器
         }
 
         // backward
@@ -479,12 +487,15 @@ double HybridAStar::ComputeH(const StateNode::Ptr &current_node_ptr,
                              const StateNode::Ptr &terminal_node_ptr)
 {
     double h;
-    // L2
+    // L2范数-欧几里德距离
     //    h = (current_node_ptr->state_.head(2) - terminal_node_ptr->state_.head(2)).norm();
 
-    // L1
+    // L1范数-曼哈顿距离
+    // state_.head(2) 获取 current_node_ptr 节点状态的前两个元素，即 x 和 y
+    // Eigen库中的 lpNorm<1>() 计算这个差异的 L1 范数，即曼哈顿距离
     h = (current_node_ptr->state_.head(2) - terminal_node_ptr->state_.head(2)).lpNorm<1>();
 
+    // 计算得到的 h 小于 3.0 * shot_distance_，就使用另一种方式重新计算 h
     if (h < 3.0 * shot_distance_)
     {
         h = rs_path_ptr_->Distance(current_node_ptr->state_.x(), current_node_ptr->state_.y(),
@@ -554,15 +565,18 @@ double HybridAStar::ComputeG(const StateNode::Ptr &current_node_ptr,
     return g;
 }
 
+// 搜索路径
 bool HybridAStar::Search(const Vec3d &start_state, const Vec3d &goal_state)
 {
     Timer search_used_time;
 
+    // 记录不同阶段操作所用时间的变量
     double neighbor_time = 0.0, compute_h_time = 0.0, compute_g_time = 0.0;
 
     const Vec3i start_grid_index = State2Index(start_state);
     const Vec3i goal_grid_index = State2Index(goal_state);
 
+    // 定义起始和目标节点的初始状态
     auto goal_node_ptr = new StateNode(goal_grid_index);
     goal_node_ptr->state_ = goal_state;
     goal_node_ptr->direction_ = StateNode::NO;

@@ -32,32 +32,43 @@
 
 #include <Eigen/Dense>
 
-struct StateNode {
+struct StateNode
+{
+    // Eigen库的宏，确保对齐操作
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-    enum NODE_STATUS {
-        NOT_VISITED = 0, IN_OPENSET = 1, IN_CLOSESET = 2
+    enum NODE_STATUS
+    {
+        NOT_VISITED = 0,
+        IN_OPENSET = 1,
+        IN_CLOSESET = 2
     };
 
-    enum DIRECTION {
-        FORWARD = 0, BACKWARD = 1, NO = 3
+    enum DIRECTION
+    {
+        FORWARD = 0,
+        BACKWARD = 1,
+        NO = 3
     };
 
+    // 不允许没有参数的默认构造
     StateNode() = delete;
 
-    explicit StateNode(const Vec3i &grid_index) {
+    explicit StateNode(const Vec3i &grid_index)
+    {
         node_status_ = NOT_VISITED;
         grid_index_ = grid_index;
         parent_node_ = nullptr;
     }
 
-    void Reset() {
+    void Reset()
+    {
         node_status_ = NOT_VISITED;
         parent_node_ = nullptr;
     }
 
     NODE_STATUS node_status_;
-    DIRECTION direction_{};
+    DIRECTION direction_{}; //{} 表示成员变量的默认初始化,为0
 
     Vec3d state_;
     Vec3i grid_index_;
@@ -71,4 +82,4 @@ struct StateNode {
     VectorVec3d intermediate_states_;
 };
 
-#endif //HYBRID_A_STAR_STATE_NODE_H
+#endif // HYBRID_A_STAR_STATE_NODE_H
