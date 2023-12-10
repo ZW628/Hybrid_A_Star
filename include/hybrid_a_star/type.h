@@ -35,6 +35,7 @@ template <int dim>
 using TypeVectorVecd = typename std::vector<Eigen::Matrix<double, dim, 1>,
                                             Eigen::aligned_allocator<Eigen::Matrix<double, dim, 1>>>;
 
+// 取别名
 // TypeVectorVecd<3> 表示一个包含三个 Eigen::Vector3d 对象的 std::vector 类型
 typedef TypeVectorVecd<4> VectorVec4d;
 typedef TypeVectorVecd<3> VectorVec3d;

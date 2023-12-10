@@ -591,20 +591,22 @@ bool HybridAStar::Search(const Vec3d &start_state, const Vec3d &goal_state)
     start_node_ptr->g_cost_ = 0.0;
     start_node_ptr->f_cost_ = ComputeH(start_node_ptr, goal_node_ptr);
 
+    // state_node_map_ 是一个三维数组，用于存储状态节点的信息
     state_node_map_[start_grid_index.x()][start_grid_index.y()][start_grid_index.z()] = start_node_ptr;
     state_node_map_[goal_grid_index.x()][goal_grid_index.y()][goal_grid_index.z()] = goal_node_ptr;
 
-    openset_.clear();
-    openset_.insert(std::make_pair(0, start_node_ptr));
+    // openset_ 用于存储待探索的节点集合
+    openset_.clear();                                   // 清空openset_
+    openset_.insert(std::make_pair(0, start_node_ptr)); // 将起始节点插入openset_
 
-    std::vector<StateNode::Ptr> neighbor_nodes_ptr;
-    StateNode::Ptr current_node_ptr;
-    StateNode::Ptr neighbor_node_ptr;
+    std::vector<StateNode::Ptr> neighbor_nodes_ptr; // 存储当前节点的邻居节点
+    StateNode::Ptr current_node_ptr;                // 表示当前处理的节点
+    StateNode::Ptr neighbor_node_ptr;               // 表示当前处理的邻居节点
 
     int count = 0;
     while (!openset_.empty())
     {
-        current_node_ptr = openset_.begin()->second;
+        current_node_ptr = openset_.begin()->second; // 获取到第一个元素的迭代器,->second 访问该元素的值，即节点的指针
         current_node_ptr->node_status_ = StateNode::IN_CLOSESET;
         openset_.erase(openset_.begin());
 
@@ -615,6 +617,8 @@ bool HybridAStar::Search(const Vec3d &start_state, const Vec3d &goal_state)
             {
                 terminal_node_ptr_ = goal_node_ptr;
 
+                // 通过访问其父节点，可以沿着路径向前移动，直到达到起始节点或者到达搜索树的根节点
+                // 获得从起始状态到目标状态的完整路径
                 StateNode::Ptr grid_node_ptr = terminal_node_ptr_->parent_node_;
                 while (grid_node_ptr != nullptr)
                 {
@@ -623,6 +627,7 @@ bool HybridAStar::Search(const Vec3d &start_state, const Vec3d &goal_state)
                 }
                 path_length_ = path_length_ - segment_length_ + rs_length;
 
+                // 输出搜索过程中的各项时间和路径长度的信息
                 std::cout << "ComputeH use time(ms): " << compute_h_time << std::endl;
                 std::cout << "check collision use time(ms): " << check_collision_use_time << std::endl;
                 std::cout << "GetNeighborNodes use time(ms): " << neighbor_time << std::endl;
@@ -639,36 +644,54 @@ bool HybridAStar::Search(const Vec3d &start_state, const Vec3d &goal_state)
         }
 
         Timer timer_get_neighbor;
+        // 获取给定状态节点的邻居节点
         GetNeighborNodes(current_node_ptr, neighbor_nodes_ptr);
+        // 将当前迭代中获取邻居节点所花费的时间累加到 neighbor_time 变量中
+        // 记录整个搜索过程中获取邻居节点的总时间
         neighbor_time = neighbor_time + timer_get_neighbor.End();
 
+        // 循环来迭代处理邻居节点的集合 neighbor_nodes_ptr 中的每个节点
         for (unsigned int i = 0; i < neighbor_nodes_ptr.size(); ++i)
         {
             neighbor_node_ptr = neighbor_nodes_ptr[i];
 
             Timer timer_compute_g;
+            // 计算当前节点 current_node_ptr 到邻居节点 neighbor_node_ptr 之间的代价（cost）
             const double neighbor_edge_cost = ComputeG(current_node_ptr, neighbor_node_ptr);
             compute_g_time = compute_g_time + timer_get_neighbor.End();
 
             Timer timer_compute_h;
+            // 计算当前节点 current_node_ptr 到目标节点 goal_node_ptr 的代价
+            // 使得总代价 f_cost_ 在相同 g_cost_ 和 h_cost_ 的情况下，受到 tie_breaker_ 影响，具有一定的随机性，以便更好地进行搜索
+            // 这有助于避免算法在相同代价下选择相同路径，增加了算法的多样性
             const double current_h = ComputeH(current_node_ptr, goal_node_ptr) * tie_breaker_;
             compute_h_time = compute_h_time + timer_compute_h.End();
 
+            // 用于获取邻居节点 neighbor_node_ptr 的网格索引
             const Vec3i &index = neighbor_node_ptr->grid_index_;
+
+            // 如果状态地图中对应位置为 nullptr，则表示该邻居节点是首次被访问
             if (state_node_map_[index.x()][index.y()][index.z()] == nullptr)
             {
+                // 计算邻居节点的 g_cost_，即从起始节点到该邻居节点的路径代价
                 neighbor_node_ptr->g_cost_ = current_node_ptr->g_cost_ + neighbor_edge_cost;
+                // 将当前节点 current_node_ptr 设置为邻居节点的父节点，表示通过当前节点扩展得到该邻居节点
                 neighbor_node_ptr->parent_node_ = current_node_ptr;
+                // 将邻居节点的状态设置为在openset中
                 neighbor_node_ptr->node_status_ = StateNode::IN_OPENSET;
+                // 计算邻居节点的总代价 f_cost_，用于后续在 openset 中排序
                 neighbor_node_ptr->f_cost_ = neighbor_node_ptr->g_cost_ + current_h;
                 openset_.insert(std::make_pair(neighbor_node_ptr->f_cost_, neighbor_node_ptr));
                 state_node_map_[index.x()][index.y()][index.z()] = neighbor_node_ptr;
                 continue;
             }
+            // 邻居节点已在openset中
             else if (state_node_map_[index.x()][index.y()][index.z()]->node_status_ == StateNode::IN_OPENSET)
             {
+                // 计算从起始节点经当前节点到邻居节点的路径代价
                 double g_cost_temp = current_node_ptr->g_cost_ + neighbor_edge_cost;
 
+                // g_cost_temp 比已存储在地图中的邻居节点的路径代价更小，要更新邻居节点的信息
                 if (state_node_map_[index.x()][index.y()][index.z()]->g_cost_ > g_cost_temp)
                 {
                     neighbor_node_ptr->g_cost_ = g_cost_temp;
@@ -844,22 +867,30 @@ void HybridAStar::Reset()
     terminal_node_ptr_ = nullptr;
 }
 
+// 通过解析方式生成路径，并将路径信息存储在目标节点 goal_node_ptr 中
+// 返回 true，表示解析扩展成功，生成的路径可行
 bool HybridAStar::AnalyticExpansions(const StateNode::Ptr &current_node_ptr,
                                      const StateNode::Ptr &goal_node_ptr, double &length)
 {
+    // 获取当前节点 current_node_ptr 到目标节点 goal_node_ptr 的解析路径
     VectorVec3d rs_path_poses = rs_path_ptr_->GetRSPath(current_node_ptr->state_,
                                                         goal_node_ptr->state_,
                                                         move_step_size_, length);
 
     for (const auto &pose : rs_path_poses)
+        // 检查每个位姿是否越界或碰撞障碍物
         if (BeyondBoundary(pose.head(2)) || !CheckCollision(pose.x(), pose.y(), pose.z()))
         {
             return false;
         };
 
+    // 用于存储路径上的中间点位
     goal_node_ptr->intermediate_states_ = rs_path_poses;
+    // 将当前节点 current_node_ptr 设置为目标节点 goal_node_ptr 的父节点
+    // 表示目标节点是从当前节点扩展而来的
     goal_node_ptr->parent_node_ = current_node_ptr;
 
+    // 移除 intermediate_states_ 容器中的第一个元素，因为当前节点已经作为起点处理过
     auto begin = goal_node_ptr->intermediate_states_.begin();
     goal_node_ptr->intermediate_states_.erase(begin);
 

@@ -143,6 +143,7 @@ void HybridAStarFlow::Run()
             PublishVehiclePath(path, 4.0, 2.0, 5u);
             PublishSearchedTree(kinodynamic_astar_searcher_ptr_->GetSearchedTree());
 
+            // 将自定义的路径数据 path 转换为 ROS 的路径消息类型 nav_msgs::Path，并设置每个路径点的坐标和姿态信息
             nav_msgs::Path path_ros;
             geometry_msgs::PoseStamped pose_stamped;
 
@@ -158,6 +159,7 @@ void HybridAStarFlow::Run()
                 path_ros.poses.emplace_back(pose_stamped);
             }
 
+            // 在 ROS 中广播了路径消息 path_ros 中每个姿态的坐标变换，将路径中的每个点的坐标变换发布到 TF（Transform）树中
             path_ros.header.frame_id = "world";
             path_ros.header.stamp = ros::Time::now();
             static tf::TransformBroadcaster transform_broadcaster;
@@ -256,7 +258,7 @@ void HybridAStarFlow::PublishVehiclePath(const VectorVec3d &path, double width,
         vehicle.scale.x = width;
         vehicle.scale.y = length;
         vehicle.scale.z = 0.01;
-        vehicle.color.a = 0.1;
+        vehicle.color.a = 0.1; // 透明度
 
         vehicle.color.r = 1.0;
         vehicle.color.b = 0.0;

@@ -40,32 +40,40 @@
  * Notes: There are many notation errors in this paper, and there are many formula derivation errors.
  *        When reading the paper, please note that the errors! Errors mainly concentrated in Section 8.
  */
-class RSPath {
+class RSPath
+{
 public:
     RSPath() = delete;
 
     explicit RSPath(double turning_radius = 1.0);
 
-    enum RSPathSegmentType {
-        N = 0, L = 1, S = 2, R = 3
+    enum RSPathSegmentType
+    {
+        // 直线运动（S）、左转（L）、右转（R）
+        N = 0,
+        L = 1,
+        S = 2,
+        R = 3
     };
     static const RSPathSegmentType RS_path_segment_type[18][5];
 
-    struct RSPathData {
+    struct RSPathData
+    {
     public:
         explicit RSPathData(const RSPathSegmentType *type = RS_path_segment_type[0],
                             double t = std::numeric_limits<double>::max(),
-                            double u = 0.0, double v = 0.0, double w = 0.0, double x = 0.0) : type_(type) {
+                            double u = 0.0, double v = 0.0, double w = 0.0, double x = 0.0) : type_(type)
+        {
             length_[0] = t;
             length_[1] = u;
             length_[2] = v;
             length_[3] = w;
             length_[4] = x;
-            total_length_ = std::fabs(length_[0]) + std::fabs(length_[1]) + std::fabs(length_[2])
-                            + std::fabs(length_[3]) + std::fabs(length_[4]);
+            total_length_ = std::fabs(length_[0]) + std::fabs(length_[1]) + std::fabs(length_[2]) + std::fabs(length_[3]) + std::fabs(length_[4]);
         }
 
-        double Length() const {
+        double Length() const
+        {
             return total_length_;
         }
 
@@ -105,7 +113,7 @@ public:
     RSPathData GetRSPath(double x, double y, double phi);
 
 private:
-
+    // C代表圆弧运动，S代表直线运动
     static void CSC(double x, double y, double phi, RSPathData &path);
 
     void CCC(double x, double y, double phi, RSPathData &path);
@@ -154,4 +162,4 @@ private:
     double turning_radius_ = 1.0;
 };
 
-#endif //HYBRID_A_STAR_RS_PATH_H
+#endif // HYBRID_A_STAR_RS_PATH_H

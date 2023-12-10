@@ -597,21 +597,24 @@ TypeVectorVecd<3> RSPath::GetRSPath(const Vec3d &start_state, const Vec3d &goal_
 
     TypeVectorVecd<3> path_poses;
 
+    // 循环的目的是生成一系列沿着 Reeds-Shepp 曲线均匀分布的点，插值计算曲线上的点
     for (unsigned int i = 0; i <= interpolation_number; ++i)
     {
         double v;
-        double t = i * 1.0 / interpolation_number;
-        double seg = t * rs_path.Length();
+        double t = i * 1.0 / interpolation_number; // 用于控制在 Reeds-Shepp 曲线上的位置
+        double seg = t * rs_path.Length();         // 得到当前点在曲线上的弧长
 
-        Vec3d temp_pose(0.0, 0.0, start_state.z());
-        for (unsigned int j = 0; j < 5u && seg > 0; ++j)
+        Vec3d temp_pose(0.0, 0.0, start_state.z());      // 初始化临时位姿
+        for (unsigned int j = 0; j < 5u && seg > 0; ++j) // 循环执行五次，表示 Reeds-Shepp 曲线由五个路径段组成
         {
+            // 检查当前路径段的长度是否小于0，如果是，表示当前路径段是一个反向（倒车）的路径段
             if (rs_path.length_[j] < 0.0)
             {
+                // v 设置为 seg 和当前路径段长度 rs_path.length_[j] 中的最大值，这确保不会超过当前路径段的长度
                 v = std::max(-seg, rs_path.length_[j]);
                 seg += v;
             }
-            else
+            else // 当前路径段是正向的
             {
                 v = std::min(seg, rs_path.length_[j]);
                 seg -= v;
@@ -620,6 +623,7 @@ TypeVectorVecd<3> RSPath::GetRSPath(const Vec3d &start_state, const Vec3d &goal_
             phi = temp_pose.z();
             switch (rs_path.type_[j])
             {
+            // 论文中公式(3-2)
             case L:
                 temp_pose.x() = std::sin(phi + v) - std::sin(phi) + temp_pose.x();
                 temp_pose.y() = -std::cos(phi + v) + std::cos(phi) + temp_pose.y();
@@ -641,10 +645,14 @@ TypeVectorVecd<3> RSPath::GetRSPath(const Vec3d &start_state, const Vec3d &goal_
         }
 
         Vec3d pose;
+        // 对 pose 矩阵进行块操作，从第 0 行、第 0 列开始，截取大小为 2 行 1 列的矩阵块
         pose.block<2, 1>(0, 0) = temp_pose.block<2, 1>(0, 0) * turning_radius_ + start_state.block<2, 1>(0, 0);
+        // 将 temp_pose 中的第三个元素（z，即角度）赋值给 pose 中的第三个元素
         pose.z() = temp_pose.z();
 
+        // 将最终得到的位姿 pose 加入到 path_poses 中，完成一次插值
         path_poses.emplace_back(pose);
+        // 循环结束后，path_poses 中存储了整个 Reeds-Shepp 曲线上插值得到的离散点的位姿
     }
 
     return path_poses;

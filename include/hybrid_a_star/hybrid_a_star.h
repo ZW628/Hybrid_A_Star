@@ -36,7 +36,8 @@
 #include <map>
 #include <memory>
 
-class HybridAStar {
+class HybridAStar
+{
 public:
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
@@ -136,15 +137,17 @@ private:
     double map_x_lower_{}, map_x_upper_{}, map_y_lower_{}, map_y_upper_{};
 
     StateNode::Ptr terminal_node_ptr_ = nullptr;
+    // 声明了一个三维数组的指针 state_node_map_，该数组的元素类型是 StateNode::Ptr 的三级指针
+    // 表示一个三维数组，其中每个元素都是指向 StateNode 类型对象或者 nullptr 的智能指针
     StateNode::Ptr ***state_node_map_ = nullptr;
 
     std::multimap<double, StateNode::Ptr> openset_;
 
-    double wheel_base_; //The distance between the front and rear axles
+    double wheel_base_; // The distance between the front and rear axles
     double segment_length_;
     double move_step_size_;
     double steering_radian_step_size_;
-    double steering_radian_; //radian
+    double steering_radian_; // radian
     double tie_breaker_;
 
     double shot_distance_;
@@ -167,4 +170,4 @@ private:
     int visited_node_number_ = 0;
 };
 
-#endif //HYBRID_A_STAR_HYBRID_A_STAR_H
+#endif // HYBRID_A_STAR_HYBRID_A_STAR_H
